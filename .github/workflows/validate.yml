@@ -10,8 +10,16 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     strategy:
+      # 不要 fail-fast。一个版本失败就把其他版本全部取消，等于把有效信号也一起丢了：
+      # 2026-10-30 首次运行就是这样——3.9 装不上，3.11 和 3.12 明明全部通过却被 cancel，
+      # 看板上只剩一片红，分不清是"代码有问题"还是"环境有问题"。
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11", "3.12"]
+        # 3.9 已从 ubuntu-24.04 及更新的 runner 镜像中移除。
+        # ubuntu-latest 现在指向 ubuntu-26.04，装 3.9 会直接报
+        # "The version '3.9' with architecture 'x64' was not found for Ubuntu 26.04."
+        # 因此把最低版本提到 3.10——这也是 ubuntu-22.04 之后仍被广泛支持的版本。
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
