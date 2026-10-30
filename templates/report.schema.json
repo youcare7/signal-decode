@@ -1,0 +1,306 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/youcare7/signal-decode/templates/report.schema.json",
+  "title": "Signal Decode Report",
+  "description": "商业信号解码报告的结构化输出格式。用于机器校验报告完整性，防止缺段、空段、和稀泥表述。",
+  "type": "object",
+  "required": ["meta", "signals", "gap", "position", "matrix", "actions", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "信息速览：源信息元数据",
+      "required": ["source", "publisher", "publish_date", "doc_type", "source_grade", "material_nature"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "信息源，须为可访问链接或可追溯出处"
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1,
+          "description": "发布主体"
+        },
+        "publish_date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "发布日期，格式 YYYY-MM-DD"
+        },
+        "effective_date": {
+          "type": ["string", "null"],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "生效日期，无则填 null"
+        },
+        "doc_type": {
+          "type": "string",
+          "enum": ["policy", "corporate_notice", "platform_rule", "industry_report", "media_release"],
+          "description": "信息类型：政策法规/企业公告/平台规则/行业报告/媒体通稿"
+        },
+        "doc_number": {
+          "type": ["string", "null"],
+          "description": "文号，无则填 null（无文号多为解读稿，信源等级应降低）"
+        },
+        "source_grade": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "信源等级：high=官方原文可查，medium=权威媒体转述，low=二手/无出处"
+        },
+        "material_nature": {
+          "type": "string",
+          "enum": ["problem_oriented", "declarative"],
+          "description": "材料性质：problem_oriented=含罚则/截止日/责任主体/考核指标；declarative=纯价值号召，无罚则无量化考核，置信度只能为 low"
+        }
+      }
+    },
+
+    "signals": {
+      "type": "array",
+      "description": "倡导信号列表，至少 1 条",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["quote", "verb", "strength", "target"],
+        "additionalProperties": false,
+        "properties": {
+          "quote": {
+            "type": "string",
+            "minLength": 4,
+            "description": "原文引文，必须逐字摘录，不得改写"
+          },
+          "verb": {
+            "type": "string",
+            "minLength": 1,
+            "description": "原文规范性动词，逐字摘录（如 鼓励/应当/必须/严禁）。不用枚举是因为真实文本动词远超可穷举范围，枚举会误杀合法输入。"
+          },
+          "strength": {
+            "type": "string",
+            "enum": ["L1-suggest", "L2-guide", "L3-require", "L4-mandate"],
+            "description": "信号强度：建议/引导/要求/强制"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "被号召或被约束的对象"
+          }
+        }
+      }
+    },
+
+    "gap": {
+      "type": "object",
+      "description": "结构性缺口诊断",
+      "required": ["type", "reasoning", "temporality"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "supply_shortage",
+            "cost_too_high",
+            "information_asymmetry",
+            "trust_deficit",
+            "capability_gap",
+            "institutional_void"
+          ],
+          "description": "缺口类型：供给不足/成本过高/信息不对称/信任缺失/能力不足/制度缺位"
+        },
+        "reasoning": {
+          "type": "string",
+          "minLength": 30,
+          "description": "推理链：从倡导信号推导到缺口类型的完整逻辑，不得只给结论"
+        },
+        "temporality": {
+          "type": "string",
+          "enum": ["cyclical", "structural", "transitional"],
+          "description": "缺口时间属性：周期性/结构性/过渡性"
+        },
+        "who_bears_cost": {
+          "type": ["string", "null"],
+          "description": "文本中未出现的成本承担方"
+        }
+      }
+    },
+
+    "position": {
+      "type": "object",
+      "description": "用户在缺口链条中的位置",
+      "required": ["role", "direct_impact"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["beneficiary", "cost_bearer", "intermediary", "bystander"],
+          "description": "受益方/成本承担方/中介方/旁观方"
+        },
+        "direct_impact": {
+          "type": "string",
+          "minLength": 20,
+          "description": "对用户收入、成本、合规、竞争格局或技能要求的具体影响路径"
+        },
+        "exit_cost": {
+          "type": ["string", "null"],
+          "description": "退出成本描述"
+        },
+        "barriers": {
+          "type": "array",
+          "description": "三门槛检验结果",
+          "items": {
+            "type": "object",
+            "required": ["kind", "passed", "note"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["qualification", "capability", "scale"],
+                "description": "资质门槛/能力门槛/规模门槛"
+              },
+              "passed": { "type": "boolean" },
+              "note": { "type": "string", "minLength": 5 }
+            }
+          }
+        }
+      }
+    },
+
+    "matrix": {
+      "type": "object",
+      "description": "风险-机会矩阵，四格必须全填",
+      "required": ["direct_opportunity", "hidden_opportunity", "explicit_risk", "implicit_risk"],
+      "additionalProperties": false,
+      "properties": {
+        "direct_opportunity": { "$ref": "#/definitions/matrixCell" },
+        "hidden_opportunity": { "$ref": "#/definitions/matrixCell" },
+        "explicit_risk": { "$ref": "#/definitions/matrixCell" },
+        "implicit_risk": { "$ref": "#/definitions/matrixCell" }
+      }
+    },
+
+    "actions": {
+      "type": "object",
+      "description": "分阶段行动清单",
+      "required": ["immediate", "quarter", "annual", "stop_loss"],
+      "additionalProperties": false,
+      "properties": {
+        "immediate": {
+          "type": "array",
+          "description": "立即（本周内）：低成本、可逆、验证性",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/action" }
+        },
+        "quarter": {
+          "type": "array",
+          "description": "3 个月内：须写明投入上限与放弃条件",
+          "items": { "$ref": "#/definitions/action" }
+        },
+        "annual": {
+          "type": "array",
+          "description": "12 个月内：须写明里程碑",
+          "items": { "$ref": "#/definitions/action" }
+        },
+        "stop_loss": {
+          "type": "array",
+          "description": "止损红线，每条含可观测信号与触发动作",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["metric", "threshold", "action"],
+            "additionalProperties": false,
+            "properties": {
+              "metric": { "type": "string", "minLength": 2, "description": "观测指标" },
+              "threshold": { "type": "string", "minLength": 2, "description": "明确阈值" },
+              "action": {
+                "type": "string",
+                "enum": ["stop", "pivot", "scale"],
+                "description": "停止/转向/加码"
+              }
+            }
+          }
+        },
+        "watch_window": {
+          "type": "array",
+          "description": "观察窗口：未来 3-6 个月盯住的指标",
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 3 }
+        }
+      }
+    },
+
+    "confidence": {
+      "type": "object",
+      "description": "置信度声明",
+      "required": ["level", "weakest_link", "falsifier"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "置信度评级"
+        },
+        "weakest_link": {
+          "type": "string",
+          "minLength": 20,
+          "description": "这份分析最可能错在哪里"
+        },
+        "falsifier": {
+          "type": "string",
+          "minLength": 15,
+          "description": "出现什么信号说明判断错了"
+        },
+        "missing_info": {
+          "type": "array",
+          "description": "缺失但会影响结论的信息",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "matrixCell": {
+      "type": "object",
+      "required": ["content", "evidence", "barrier"],
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 15,
+          "description": "具体内容，须含对象和动作"
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 15,
+          "description": "判断依据：原文条款或推理链"
+        },
+        "barrier": {
+          "type": "string",
+          "minLength": 5,
+          "description": "门槛：需要什么条件才能吃到这个机会或规避这个风险"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["what", "when", "verifiable"],
+      "additionalProperties": false,
+      "properties": {
+        "what": { "type": "string", "minLength": 10, "description": "具体动作" },
+        "when": { "type": "string", "minLength": 3, "description": "时间节点" },
+        "verifiable": {
+          "type": "string",
+          "minLength": 10,
+          "description": "如何被第三方独立验证已完成"
+        },
+        "budget_cap": {
+          "type": ["string", "null"],
+          "description": "投入上限，无则 null"
+        },
+        "abandon_if": {
+          "type": ["string", "null"],
+          "description": "放弃条件，无则 null"
+        }
+      }
+    }
+  }
+}

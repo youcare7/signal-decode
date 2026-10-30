@@ -1,0 +1,201 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Validate example reports
+        run: |
+          set -e
+          for f in examples/*.json; do
+            echo "=== validating $f ==="
+            python scripts/validate_report.py "$f"
+          done
+
+      # 2.1.0 的核心新增是「材料性质门控」：declarative（价值宣示，无罚则/责任主体/
+      # 量化考核）的材料，置信度只能给 low。上面的示例报告只证明「合法输入能过」，
+      # 证明不了门控真的在拦——有人把这段判断删了，示例照样全绿。
+      # 所以这里必须构造违规输入去撞它：该报错的要报错，该放行的要放行。
+      - name: Mutation-test the material_nature gate
+        run: |
+          python - <<'PY'
+          import copy, json, subprocess, sys, tempfile, os
+
+          SAMPLE = "examples/example-02-platform-rule.json"
+          VALIDATOR = "scripts/validate_report.py"
+          base = json.load(open(SAMPLE, encoding="utf-8"))
+
+          def run_case(data):
+              with tempfile.NamedTemporaryFile(
+                  "w", suffix=".json", delete=False, encoding="utf-8"
+              ) as fh:
+                  json.dump(data, fh, ensure_ascii=False, indent=2)
+                  path = fh.name
+              try:
+                  proc = subprocess.run(
+                      [sys.executable, VALIDATOR, path],
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                  )
+                  return proc.returncode, proc.stdout.decode("utf-8", "replace")
+              finally:
+                  os.unlink(path)
+
+          def mutate(nature, level):
+              d = copy.deepcopy(base)
+              d["meta"]["material_nature"] = nature
+              d["confidence"]["level"] = level
+              if level == "low":
+                  # 低置信度只允许给立即档，否则会撞上另一条门控，
+                  # 把材料性质门控到底有没有生效掩盖掉。
+                  d["actions"]["quarter"] = []
+                  d["actions"]["annual"] = []
+              return d
+
+          def drop_nature():
+              d = copy.deepcopy(base)
+              d["meta"].pop("material_nature", None)
+              return d
+
+          def bad_nature():
+              d = copy.deepcopy(base)
+              d["meta"]["material_nature"] = "advertising"
+              return d
+
+          cases = [
+              ("declarative + medium", mutate("declarative", "medium"), 1),
+              ("declarative + high", mutate("declarative", "high"), 1),
+              ("declarative + low", mutate("declarative", "low"), 0),
+              ("problem_oriented + high", mutate("problem_oriented", "high"), 0),
+              ("missing material_nature", drop_nature(), 1),
+              ("illegal material_nature", bad_nature(), 1),
+          ]
+
+          failures = 0
+          for name, data, expect in cases:
+              code, out = run_case(data)
+              ok = code == expect
+              print(f"  [{'PASS' if ok else 'FAIL'}] {name} -> exit {code} (expect {expect})")
+              if not ok:
+                  failures += 1
+                  print(out)
+          if failures:
+              sys.exit(f"material_nature gate regressions: {failures}/{len(cases)}")
+          print(f"material_nature gate OK: {len(cases)}/{len(cases)}")
+          PY
+
+      - name: Verify SKILL.md frontmatter
+        run: |
+          python - <<'PY'
+          import re, sys, pathlib
+
+          REQUIRED = [
+              "name", "display_name", "display_name_en", "description",
+              "description_zh", "description_en", "version", "author",
+          ]
+          text = pathlib.Path("SKILL.md").read_text(encoding="utf-8")
+          if not text.startswith("---\n"):
+              sys.exit("SKILL.md 必须以 --- 开头")
+          end = text.find("\n---\n", 3)
+          if end < 0:
+              sys.exit("SKILL.md frontmatter 未闭合")
+          fm = text[4:end]
+
+          missing = [k for k in REQUIRED if not re.search(rf"^{k}\s*:", fm, re.M)]
+          if missing:
+              sys.exit(f"缺少必填字段: {missing}")
+
+          m = re.search(r"^name\s*:\s*(\S+)", fm, re.M)
+          if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", m.group(1)):
+              sys.exit(f"name 必须小写连字符: {m.group(1)}")
+
+          v = re.search(r"^version\s*:\s*(\S+)", fm, re.M)
+          if not re.fullmatch(r"\d+\.\d+\.\d+", v.group(1)):
+              sys.exit(f"version 必须语义化: {v.group(1)}")
+
+          print("frontmatter OK")
+          PY
+
+      - name: Check encoding (no BOM, no CRLF)
+        run: |
+          python - <<'PY'
+          import sys, pathlib
+
+          bad = []
+          for p in pathlib.Path(".").rglob("*"):
+              if not p.is_file() or ".git" in p.parts:
+                  continue
+              if p.suffix not in {".md", ".json", ".py", ".yml", ".yaml"}:
+                  continue
+              raw = p.read_bytes()
+              if raw.startswith(b"\xef\xbb\xbf"):
+                  bad.append(f"{p}: 含 BOM")
+              if b"\r\n" in raw:
+                  bad.append(f"{p}: 含 CRLF")
+          if bad:
+              sys.exit("\n".join(bad))
+          print("encoding OK")
+          PY
+
+      - name: Package skill zip
+        run: |
+          python - <<'PY'
+          import zipfile, pathlib, sys
+
+          top = "signal-decode"
+          # 官方只认可 references/ scripts/ templates/ 三个子目录。
+          # 仓库资产（examples/ 回归样本、.github/ CI 配置）不进上传包。
+          skip_dirs = {"__pycache__", ".git", ".github", "examples", "dist"}
+          out = pathlib.Path("dist") / "signal-decode.zip"
+          out.parent.mkdir(exist_ok=True)
+
+          files = [
+              p for p in pathlib.Path(".").rglob("*")
+              if p.is_file()
+              and not skip_dirs & set(p.parts)
+              # 后缀白名单会漏掉 LICENSE（无后缀），显式放行
+              and (p.suffix in {".md", ".json", ".py"} or p.name == "LICENSE")
+          ]
+          if not files:
+              sys.exit("没有可打包的文件")
+
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(files):
+                  arc = top + "/" + p.as_posix()
+                  z.write(p, arc)
+
+          with zipfile.ZipFile(out) as z:
+              names = z.namelist()
+              assert "signal-decode/SKILL.md" in names, "缺少 SKILL.md"
+              assert "signal-decode/scripts/validate_report.py" in names, "缺少校验器"
+              assert not any("\\" in n for n in names), "存在反斜杠条目"
+              tops = {n.split("/")[0] for n in names}
+              assert tops == {top}, f"顶层目录不唯一: {tops}"
+              subs = {n.split("/")[1] for n in names if n.count("/") > 1}
+              assert subs <= {"references", "scripts", "templates"}, f"存在非官方子目录: {subs}"
+              print(f"打包完成: {out} ({len(names)} 文件)")
+              for n in names:
+                  print("  ", n)
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-decode-skill
+          path: dist/signal-decode.zip

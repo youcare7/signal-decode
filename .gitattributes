@@ -1,0 +1,9 @@
+# 全仓库强制 LF。
+#
+# 为什么必须显式声明：Windows 版 git 的 core.autocrlf 默认是 true，
+# 检出时会把 LF 转成 CRLF。而本仓库的 CI 有一条硬检查——任何 .md/.json/.py/.yml
+# 含 CRLF 就判失败（平台解析器对 CRLF 的处理不可靠，SKILL.md 尤其敏感）。
+# 不加这个文件，Windows 上 clone 下来的副本会当场破坏自己的编码检查。
+#
+# `-text` 表示不做任何换行转换：字节原样进出。
+* -text
