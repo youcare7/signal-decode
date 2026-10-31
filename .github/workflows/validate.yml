@@ -140,6 +140,10 @@ jobs:
           print("frontmatter OK")
           PY
 
+      - name: Validate expert package
+        run: |
+          python tools/validate_expert.py experts/signal-decoder
+
       - name: Check encoding (no BOM, no CRLF)
         run: |
           python - <<'PY'
@@ -168,8 +172,13 @@ jobs:
 
           top = "signal-decode"
           # 官方只认可 references/ scripts/ templates/ 三个子目录。
-          # 仓库资产（examples/ 回归样本、.github/ CI 配置）不进上传包。
-          skip_dirs = {"__pycache__", ".git", ".github", "examples", "dist"}
+          # 仓库资产（examples/ 回归样本、tools/ 专家校验器、experts/ 专家包、
+          # .github/ CI 配置）一律不进上传包——它们进了包就会被
+          # subs <= {references,scripts,templates} 断言拦住，也会让平台解析失败。
+          skip_dirs = {
+              "__pycache__", ".git", ".github",
+              "examples", "tools", "experts", "dist",
+          }
           out = pathlib.Path("dist") / "signal-decode.zip"
           out.parent.mkdir(exist_ok=True)
 

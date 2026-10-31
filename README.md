@@ -47,15 +47,23 @@ signal-decode/
 │   └── example-02-platform-rule.json # 平台规则类示例（置信度 high）
 ├── scripts/                        # 官方认可子目录：AI 通过 Bash 执行
 │   └── validate_report.py          # 报告校验器（零第三方依赖）
+├── experts/                        # 仓库专用，不随技能包上传
+│   └── signal-decoder/             # 专家（Expert）包：同一方法论的入口形态
+│       ├── .codebuddy-plugin/plugin.json
+│       ├── agents/signal-decoder.md
+│       ├── avatars/expert.png      # 512x512，纯图形
+│       └── README.md
+├── tools/                          # 仓库专用，不随技能包上传
+│   └── validate_expert.py          # 专家包校验器（零第三方依赖）
 └── .github/workflows/
-    └── validate.yml                # CI：提交即校验示例与包体
+    └── validate.yml                # CI：提交即校验示例、专家包与包体
 ```
 
 **目录归类的硬约束**：WorkBuddy 官方技能规范只列出 `references/`、`scripts/`、`templates/` 三个子目录。第一版曾把方法论放在 `docs/`、schema 放在 `schema/`，打包校验时被判定为「非官方子目录，可能被忽略或导致解析失败」。现已全部并入 `references/` 与 `templates/`。
 
 校验器放在 `scripts/` 而不是自定义目录，原因有两层：一是官方只认这三个子目录；二是 `scripts/` 会被打进上传包，用户装完之后**自己也能跑自检**——如果把校验器排除在包外，SKILL.md 里"输出 JSON 后必须跑校验"这条指令在用户机器上就是死链。
 
-`examples/` 则确实不进包：它们是仓库的回归测试样本，技能运行时不需要。
+`examples/`、`experts/`、`tools/` 则确实不进包：前两者是回归样本与另一形态的交付物，`tools/` 是仓库自己的检查工具，技能运行时都不需要。CI 的打包步骤显式 `skip_dirs` 掉它们，并有断言兜底——一旦漏掉，`subs <= {references,scripts,templates}` 会立刻失败。
 
 ## 快速开始
 
@@ -101,6 +109,20 @@ python scripts/validate_report.py path/to/your-report.json
 | 反废话黑名单 | 和稀泥表述报 ERROR，空话形容词报 WARN |
 
 **零第三方依赖**：不 import jsonschema、不 import yaml，只用标准库。因为目标运行环境（Agent 沙箱、CI、Windows 内置 Python）经常没有这些包。
+
+### 4. 当专家用
+
+`experts/signal-decoder/` 是同一方法论的另一种交付形态——技能是工具，专家是入口。它有自己的包结构（`.codebuddy-plugin/plugin.json` + `agents/` + `avatars/`），按 WorkBuddy 专家规范校验：
+
+```bash
+python tools/validate_expert.py experts/signal-decoder
+```
+
+校验项：16 个必填字段、name/plugin/agentName 三者一致、`displayDescription.zh` 中文 40-50 字、`defaultInitPrompt` 与 `quickPrompts[0]` 中英双语一致、tags 与 quickPrompts 各 3 个、头像 512×512 且 ≤500KB、agent frontmatter 四必填、无硬编码密钥、无 BOM/CRLF。
+
+**头像尺寸走零依赖路径**：PNG 直接读 IHDR 前 24 字节取宽高，不需要 Pillow。原因很实际——CI 上不保证装得上 Pillow，如果缺了就只打一条 WARN 跳过，"512×512"这条官方硬约束在流水线上就从来没被检查过，换一张 128×128 的图照样全绿。
+
+两个包版本必须同步：`SKILL.md` 的 `version:` 与 `plugin.json` 的 `version` 不一致时，说明改了一个忘了另一个。
 
 ## 设计取舍
 

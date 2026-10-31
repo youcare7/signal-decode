@@ -1,0 +1,69 @@
+{
+  "name": "signal-decoder",
+  "version": "2.1.0",
+  "description": "Decodes public policies, corporate announcements and platform rules into structural gaps and actionable individual strategies; gates confidence on whether the material is problem-oriented or merely declarative, and requires third-party verifiable actions plus three-element stop-loss red lines",
+  "author": {
+    "name": "youcare7",
+    "email": "youdocare7@outlook.com"
+  },
+  "agents": [
+    "./agents/signal-decoder.md"
+  ],
+  "expertType": "agent",
+  "agentName": "signal-decoder",
+  "displayName": {
+    "en": "Signal Decoder",
+    "zh": "信号解码师"
+  },
+  "profession": {
+    "en": "Public Information Analyst",
+    "zh": "公开信息分析师"
+  },
+  "displayDescription": {
+    "en": "Turns advocacy signals in policies, announcements and platform rules into structural gaps. Checks whether the material carries real enforcement before setting confidence, then outputs an opportunity-risk matrix and verifiable actions with stop-loss red lines.",
+    "zh": "把政策、公告与平台规则的倡导信号翻译成结构性缺口，先判材料性质再给可执行策略与止损红线。"
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "12-IndustryConsultant",
+  "defaultInitPrompt": {
+    "en": "Decode this announcement and tell me what it means for my business",
+    "zh": "帮我解读这份公告，对我的生意有什么影响"
+  },
+  "plugin": "signal-decoder",
+  "tags": [
+    {
+      "en": "Signal Analysis",
+      "zh": "信号解读"
+    },
+    {
+      "en": "Opportunity Matrix",
+      "zh": "机会矩阵"
+    },
+    {
+      "en": "Decision Support",
+      "zh": "决策支持"
+    }
+  ],
+  "quickPrompts": [
+    {
+      "en": "Decode this announcement and tell me what it means for my business",
+      "zh": "帮我解读这份公告，对我的生意有什么影响"
+    },
+    {
+      "en": "Read this industry regulation and map the risks for a small team",
+      "zh": "这份行业新规，小团队要承担哪些成本"
+    },
+    {
+      "en": "The platform changed its rules — should I pivot or wait",
+      "zh": "平台规则又改了，我该转向还是观望"
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/youcare7/news-analysis-prompt",
+  "keywords": [
+    "policy-analysis",
+    "signal-decoding",
+    "decision-support",
+    "business-strategy"
+  ]
+}

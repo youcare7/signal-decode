@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 未发布 — 2026-11-01
+
+仓库级补充，**不改变技能包内容**：`SKILL.md` 与 `references/`、`templates/`、`scripts/` 逐字节未动，上传包仍是 9 文件 40782 B。技能版本保持 2.1.0，因为该版本已在平台提交审核中，改版本号会让线上包与仓库对不上。
+
+### 新增
+
+- **`experts/signal-decoder/`**：专家（Expert）包，同一方法论的另一种交付形态。技能是工具，专家是入口——`defaultInitPrompt` 与三条 `quickPrompts` 把"我该问什么"也替用户解决了。此前该包只存在于本地工作目录，仓库里没有，等于这一形态没有版本管理。
+- **`tools/validate_expert.py`**：专家包校验器，零第三方依赖。检查 16 个必填字段、name/plugin/agentName 三者一致、`displayDescription.zh` 中文 40-50 字、`defaultInitPrompt` 与 `quickPrompts[0]` 中英双语一致、tags 与 quickPrompts 各 3 个、头像 512×512 且 ≤500KB、agent frontmatter 四必填、无硬编码密钥、无 BOM/CRLF。
+
+### 修复
+
+- **头像尺寸校验在无 Pillow 环境下形同虚设**：原实现 `try: from PIL import Image ... except ImportError: r.warn("未安装 Pillow，跳过头像尺寸校验")`。CI 上不保证装得上 Pillow，所以"512×512"这条官方硬约束在流水线上从来没有被检查过——换一张 128×128 的图照样全绿。已改为 PNG 走零依赖路径（直接读 IHDR 前 24 字节取宽高），只有 JPG 才需要 Pillow。变异测试：把头像换成 128×128 → `[ERROR] 头像尺寸必须为 512x512，当前 128x128`，退出码 1。
+
+### 变更
+
+- **CI 打包步骤新增 `experts`、`tools` 到 `skip_dirs`**。这两个目录是仓库资产，进包会触发 `subs <= {references,scripts,templates}` 断言失败，也会让平台解析报「非官方子目录」。本地模拟 CI 打包已验证：仍 9 文件、与线上包逐字节一致。
+- **CI 新增 `Validate expert package` 步骤**，在编码检查之前跑 `python tools/validate_expert.py experts/signal-decoder`。
+
 ## 2.1.0 — 2026-10-30
 
 ### Added
