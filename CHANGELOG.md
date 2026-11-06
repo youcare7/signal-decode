@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 未发布 — 2026-11-06
+
+仓库级补充，为 Agensi 上架做准备。**技能行为不变**，`SKILL.md`、`references/`、`templates/`、`scripts/` 逐字节未动。
+
+### 修复
+
+- **示例报告里用了伪政府/伪平台 URL**：`example-01-policy.json` 的 `meta.source` 原为 `https://www.gov.cn/zhengce/zhengceku/example-notice.html`，`example-02-platform-rule.json` 原为 `https://open.example-platform.cn/docs/rule-update-2026q4`。前者域名真实但路径不存在，后者是自造域名——两者都容易被误读为"引用了一份真实存在的文件"，而示例其实是虚构材料。已统一换成 IANA 保留的示例域名 `https://example.com/policy/2026-09-15-notice` 与 `https://example.com/platform-rule/2026-10-20`。
+  - 动机：Agensi Terms 6.3 要求描述与内容准确，WorkBuddy《开发者公约》2.5.1 禁止虚构案例。用真实域名指代不存在的内容，两个平台都不该留。
+  - **影响范围要说清**：`examples/` 本身不在 WorkBuddy 上传包内（CI 的 `skip_dirs` 与 `build_skill_zip.py` 的 `DEFAULT_EXCLUDE` 都排除它），所以修复示例文件**不改变 WorkBuddy 包**。但本段 CHANGELOG 一加，`CHANGELOG.md` 体积变了——而它**在**包里，所以 WorkBuddy 包体积会跟着变。这两件事不是一回事，不能混着说。
+  - 两份示例改后仍 `结论: 通过 — 0 个错误, 0 个警告`。
+
+### 新增
+
+- **`scripts/build_agensi_zip.py`**：Agensi 专用打包脚本。与 WorkBuddy 包的关键差异是**包含 `examples/`**（Agensi 官方 Creator Checklist 明确推荐带 supporting files），共 11 文件。同一份源码，两个平台各打各的包，不改源码。
+- **`scripts/agensi_scan.py`**：把 Agensi Terms 6.3a（禁止站外付费渠道）与 6.2（8 点安全扫描）映射成本地检查：结构、站外渠道、脚本高危模式、外链清单四类。
+- **`scripts/test_agensi_scan.py`**：上面那个扫描器的负向测试，5 个坏包 + 1 个基准，实测 6/6。
+
 ## 未发布 — 2026-11-01
 
 仓库级补充。**技能行为不变，但包体变了**，这两件事要分开说：
